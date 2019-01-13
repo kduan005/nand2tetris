@@ -1,3 +1,5 @@
+import sys
+
 #function to execute text cleaning
 def textClean(inname):
     '''
@@ -8,9 +10,9 @@ def textClean(inname):
     #reference https://stackoverflow.com/questions/713794/catching-an-exception-while-using-a-python-with-statement
     try:
         inf = open(inname, "r")
-    except EnvironmentError:
+    except:
         print("File not found or path is incorrect")
-    finally:
+    else:
         outname = inname[:-3] + ".out"
         outf = open(outname, "w")
         skipflag = False
@@ -62,4 +64,5 @@ def isBlockCommentsEnd(s):
     return isBlockCommentsStart(s[::-1])
 
 if __name__ == '__main__':
-    textClean("/Users/kduan/Documents/Intro_to_Computer_System/nand2tetris/project0/src/test.in")
+    textClean("../test.in")
+    textClean(sys.argv[1])
