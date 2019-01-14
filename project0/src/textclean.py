@@ -1,8 +1,8 @@
 import sys
 
-#function to execute text cleaning
 def textClean(inname):
     '''
+    Function to execute text cleaning
     Input: str, name of file for text cleaning, "<filename>.in"
     The function will create an output file named "<filename>.out"
     in the directory where <filename>.in resides
@@ -18,29 +18,30 @@ def textClean(inname):
         skipflag = False
         with inf, outf:
             for row in inf:
-                clean = stripSpaces(row)
+                clean = stripSpacesTabs(row)
+                clean = stripSingleLineComments(clean)
                 if clean == "\n":
                     continue
                 if isBlockCommentsStart(clean):
                     skipflag = True
                 if not skipflag:
-                    clean = stripSingleLineComments(clean)
                     outf.write(str(clean))
                 if isBlockCommentsEnd(row):
                     skipflag = False
 
-#function to remove all white spaces in a row of string
-def stripSpaces(s):
+def stripSpacesTabs(s):
     '''
+    Function to remove all white spaces in a row of string
     Input: str containing white spaces
     Output: str after removing white spaces
     '''
     s = s.replace(" ", "")
+    s = s.replace("\t", "")
     return s
 
-#function to remove a single line of comments starting with //
 def stripSingleLineComments(s):
     '''
+    Function to remove a single line of comments starting with //
     Input: str containing comments
     Output: str after removing comments
     '''
@@ -64,5 +65,4 @@ def isBlockCommentsEnd(s):
     return isBlockCommentsStart(s[::-1])
 
 if __name__ == '__main__':
-    textClean("../test.in")
     textClean(sys.argv[1])
