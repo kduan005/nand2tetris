@@ -14,4 +14,4 @@ The program will:
 but not line returns;
 2)Remove all comments in addition to the whitespace. Comments come in two forms:
 - comments begin with the sequence "//" and end at the line return
-- comments begin with the sequence "/*" and end at the sequence "*/"
+- comments begin with the sequence /* and end at the sequence */
