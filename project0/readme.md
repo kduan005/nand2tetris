@@ -1,4 +1,4 @@
-Usage Instruction for cleantext.py
+Usage instruction for cleantext.py
 
 In shell command, append the absolute/relative path of your ".in" file that you
 want to clean in the format of string after textclean.py as follows:
