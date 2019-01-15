@@ -4,6 +4,7 @@ In shell command, append the absolute/relative path of your ".in" file that you
 want to clean in the format of string after textclean.py as follows:
 
 $ python textclean.py '../test.in'
+
 $ python textclean.py '/Users/kduan/Documents/Intro_to_Computer_System/nand2tetris/project0/test.in'
 
 After execute the command line, you should be able to see a ".out" file with
