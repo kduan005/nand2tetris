@@ -3,6 +3,8 @@
 D=M
 @KBDLOOP
 D;JEQ
+@10
+D=A
 @50
 D=A
 @R0
