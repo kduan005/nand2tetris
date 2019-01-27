@@ -16,17 +16,30 @@ def textClean(inname):
         outname = inname[:-3] + ".out"
         outf = open(outname, "w")
         skipflag = False
+
         with inf, outf:
             for row in inf:
                 clean = stripSpacesTabs(row)
                 clean = stripSingleLineComments(clean)
+
                 if clean == "\n":
                     continue
+
                 if isBlockCommentsStart(clean):
+                    #In case multi-line comments start mid-line, keep what's before
+                    clean = removeStartingComments(clean)
+                    if clean != "\n":
+                        outf.write(str(clean))
                     skipflag = True
+
                 if not skipflag:
                     outf.write(str(clean))
+
                 if isBlockCommentsEnd(row):
+                    #In case multi-line comments end mid-line, keep what's after
+                    clean = removeClosingComments(clean)
+                    if clean != "\n":
+                        outf.write(str(clean))
                     skipflag = False
 
 def stripSpacesTabs(s):
@@ -57,12 +70,32 @@ def isBlockCommentsStart(s):
     '''
     return True if "/*" in s else False
 
+def removeStartingComments(s):
+    '''
+    Removing comments with leading "/*" from a line
+    Input: str containing comments
+    Output: str after removing start of multi-lines comments
+    '''
+    for i in range(len(s)-1):
+        if s[i:i+2] == "/*":
+            return s[:i] + "\n"
+
 def isBlockCommentsEnd(s):
     '''
     Input: str to examine
     Output: Bool, true if */ is in the str otherwise false
     '''
     return isBlockCommentsStart(s[::-1])
+
+def removeClosingComments(s):
+    '''
+    Removing comments with closing "*/" from a line
+    Input: str containing comments
+    Ouput: str after striping
+    '''
+    for i in range(1, len(s)):
+        if s[i-1:i+1] == "*/":
+            return s[i+1:]
 
 if __name__ == '__main__':
     textClean(sys.argv[1])
