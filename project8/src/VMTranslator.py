@@ -38,6 +38,8 @@ class parser(object):
             self.commandType = self.tokens[0]
         elif self.tokens[0] == "return":
             self.commandType = self.tokens[0]
+        elif self.tokens[0] == "bootstrap":
+            self.commandType = self.tokens[0]
 
     def genArgOne(self):
         #method to assign argOne according to command types
@@ -133,7 +135,7 @@ class codeWriter(object):
         self.functionName = parser.functionName
         #add raw command as comment at the top of block of assembly command
         #for debugging purpose
-        self.asmCmd = ["// " + parser.raw]
+        self.asmCmd = ["// {}".format(parser.raw)]
 
         if self.commandType == "arithmetic":
             self.writeArithmetic()
@@ -149,6 +151,8 @@ class codeWriter(object):
             self.writeFunction()
         elif self.commandType == "return":
             self.writeReturn()
+        elif self.commandType == "bootstrap":
+            self.writeInit()
 
     def writeArithmetic(self):
         #method that calls different code generation methods according to
@@ -168,7 +172,7 @@ class codeWriter(object):
                             "AM=M-1",
                             "D=M",
                             "A=A-1",
-                            "M=M" + self.d[self.argOne] + "D"])
+                            "M=M{}D".format(self.d[self.argOne])])
 
     def eq_lt_gt(self):
         #generate asm code for "eq", "lt" or "gt" command
@@ -178,12 +182,12 @@ class codeWriter(object):
                             "A=A-1",
                             "D=M-D",
                             "M=-1",
-                            "@CONTINUE" + str(self.counter),
-                            "D;" + self.d[self.argOne],
+                            "@CONTINUE{}".format(self.counter),
+                            "D;{}".format(self.d[self.argOne]),
                             "@SP",
                             "A=M-1",
                             "M=0",
-                            "(CONTINUE" + str(self.counter) + ")"])
+                            "(CONTINUE{})".format(self.counter)])
         #increment continue_counter by 1 for generating next continue label
         self.counter += 1
 
@@ -191,7 +195,7 @@ class codeWriter(object):
         #generate asm code for "neg" or "not" command
         self.asmCmd.extend(["@SP",
                             "A=M-1",
-                            "M=" + self.d[self.argOne] + "M"])
+                            "M={}M".format(self.d[self.argOne])])
 
     def and_or(self):
         #generate asm code for "and" or "or" command
@@ -199,14 +203,14 @@ class codeWriter(object):
                             "AM=M-1",
                             "D=M",
                             "A=A-1",
-                            "D=D" + self.d[self.argOne] + "M",
+                            "D=D{}M".format(self.d[self.argOne]),
                             "M=D"])
 
     def writePush(self):
         #generate asm code for push command
         #case "constant"
         if self.argOne == "constant":
-            self.asmCmd.extend(["@" + self.argTwo,
+            self.asmCmd.extend(["@{}".format(self.argTwo),
                                 "D=A",
                                 "@SP",
                                 "A=M",
@@ -215,30 +219,30 @@ class codeWriter(object):
                                 "M=M+1"])
         #case "local", "argument", "this", "that"
         elif self.argOne in {"local", "argument", "this", "that"}:
-            self.asmCmd.extend(["@" + self.argTwo,
+            self.asmCmd.extend(["@{}".format(self.argTwo),
                                 "D=A",
-                                "@" + self.d[self.argOne],
+                                "@{}".format(self.d[self.argOne]),
                                 "AM=D+M",
                                 "D=M",
                                 "@SP",
                                 "AM=M+1",
                                 "A=A-1",
                                 "M=D",
-                                "@" + self.argTwo,
+                                "@{}".format(self.argTwo),
                                 "D=A",
-                                "@" + self.d[self.argOne],
+                                "@{}".format(self.d[self.argOne]),
                                 "M=M-D"])
         #case "temp", "pointer", "static"
         elif self.argOne in {"temp", "pointer", "static"}:
             if self.argOne == "static":
-                self.asmCmd.extend(["@" + self.className + self.argTwo,
+                self.asmCmd.extend(["@{}".format(self.className + self.argTwo),
                                     "D=M",
                                     "@SP",
                                     "AM=M+1",
                                     "A=A-1",
                                     "M=D"])
             else:
-                self.asmCmd.extend(["@" + self.d[self.argOne + self.argTwo],
+                self.asmCmd.extend(["@{}".format(self.d[self.argOne + self.argTwo]),
                                     "D=M",
                                     "@SP",
                                     "AM=M+1",
@@ -249,19 +253,19 @@ class codeWriter(object):
         #generate asm code for pop command
         #case "local", "argument", "this", "that"
         if self.argOne in {"local", "argument", "this", "that"}:
-            self.asmCmd.extend(["@" + self.argTwo,
+            self.asmCmd.extend(["@{}".format(self.argTwo),
                                 "D=A",
-                                "@" + self.d[self.argOne],
+                                "@{}".format(self.d[self.argOne]),
                                 "M=D+M",
                                 "@SP",
                                 "AM=M-1",
                                 "D=M",
-                                "@" + self.d[self.argOne],
+                                "@{}".format(self.d[self.argOne]),
                                 "A=M",
                                 "M=D",
-                                "@" + self.argTwo,
+                                "@{}".format(self.argTwo),
                                 "D=A",
-                                "@" + self.d[self.argOne],
+                                "@{}".format(self.d[self.argOne]),
                                 "M=M-D"])
         #case "temp", "pointer", "static"
         elif self.argOne in {"temp", "pointer", "static"}:
@@ -269,13 +273,13 @@ class codeWriter(object):
                 self.asmCmd.extend(["@SP",
                                     "AM=M-1",
                                     "D=M",
-                                    "@" + self.className + self.argTwo,
+                                    "@{}".format(self.className + self.argTwo),
                                     "M=D"])
             else:
                 self.asmCmd.extend(["@SP",
                                     "AM=M-1",
                                     "D=M",
-                                    "@" + self.d[self.argOne + self.argTwo],
+                                    "@{}".format(self.d[self.argOne + self.argTwo]),
                                     "M=D"])
 
     def writeBranching(self):
@@ -288,11 +292,11 @@ class codeWriter(object):
 
     def label(self):
         #generate asm code for "label label"
-        self.asmCmd.extend(["(" + self.functionName + "$" + self.argTwo + ")"])
+        self.asmCmd.extend(["({}${})".format(self.functionName, self.argTwo)])
 
     def goto(self):
         #generate asm code for "goto label"
-        self.asmCmd.extend(["@" + self.functionName + "$" + self.argTwo,
+        self.asmCmd.extend(["@{}${}".format(self.functionName, self.argTwo),
                             "0;JMP"])
 
     def if_goto(self):
@@ -300,12 +304,12 @@ class codeWriter(object):
         self.asmCmd.extend(["@SP",
                             "AM=M-1",
                             "D=M",
-                            "@" + self.functionName + "$" + self.argTwo,
+                            "@{}${}".format(self.functionName, self.argTwo),
                             "D;JNE"])
 
     def writeCall(self):
         self.asmCmd.extend(["//push returnAddr",
-                            "@" + self.functionName + "$ret." + str(self.counter),
+                            "@{}$ret.{}".format(self.functionName, self.counter),
                             "D=A",
                             "@SP",
                             "AM=M+1",
@@ -344,7 +348,7 @@ class codeWriter(object):
                             "D=M",
                             "@5",
                             "D=D-A",
-                            "@" + self.argTwo,
+                            "@{}".format(self.argTwo),
                             "D=D-A",
                             "@ARG",
                             "M=D",
@@ -354,13 +358,13 @@ class codeWriter(object):
                             "@LCL",
                             "M=D",
                             "//goto functionName",
-                            "@" + self.argOne,
+                            "@{}".format(self.argOne),
                             "0;JMP",
-                            "(" + self.functionName + "$ret." + str(self.counter) + ")"])
+                            "({}$ret.{})".format(self.functionName, self.counter)])
         self.counter += 1
 
     def writeFunction(self):
-        self.asmCmd.extend(["(" + self.functionName + ")"])
+        self.asmCmd.extend(["({})".format(self.functionName)])
         for i in range(int(self.argTwo)):
             self.asmCmd.extend(["@SP",
                                 "AM=M+1",
@@ -434,60 +438,7 @@ class codeWriter(object):
         self.asmCmd.extend(["@256",
                             "D=A",
                             "@SP",
-                            "M=D",
-                            "//push returnAddr",
-                            "@" + "Sys.init" + "$ret." + str(self.counter),
-                            "D=A",
-                            "@SP",
-                            "AM=M+1",
-                            "A=A-1",
-                            "M=D",
-                            "//push LCL",
-                            "@LCL",
-                            "D=M",
-                            "@SP",
-                            "AM=M+1",
-                            "A=A-1",
-                            "M=D",
-                            "//push ARG",
-                            "@ARG",
-                            "D=M",
-                            "@SP",
-                            "AM=M+1",
-                            "A=A-1",
-                            "M=D",
-                            "//push THIS",
-                            "@THIS",
-                            "D=M",
-                            "@SP",
-                            "AM=M+1",
-                            "A=A-1",
-                            "M=D",
-                            "//push THAT",
-                            "@THAT",
-                            "D=M",
-                            "@SP",
-                            "AM=M+1",
-                            "A=A-1",
-                            "M=D",
-                            "//ARG = SP - 5 - n",
-                            "@SP",
-                            "D=M",
-                            "@5",
-                            "D=D-A",
-                            "@0",
-                            "D=D-A",
-                            "@ARG",
-                            "M=D",
-                            "//LCL = SP",
-                            "@SP",
-                            "D=M",
-                            "@LCL",
-                            "M=D",
-                            "//goto functionName",
-                            "@" + "Sys.init",
-                            "0;JMP",
-                            "(" + "Sys.init" + "$ret." + str(self.counter) + ")"])
+                            "M=D"])
 
     def close(self):
         #close output file
@@ -497,18 +448,26 @@ class vmTranslator(object):
     #vmTranslator class pieces parser and codeWriter together, constructor takes
     #the file path and file name to be translated, constructs parser and codeWriter
     def __init__(self, path):
+        self.path = path
+        #setting self.outname to be the name of output file
         if path[-3:] == ".vm":
             self.outname = path[:-3] + ".asm"
         else:
             self.outname = path + "/" + path.split("/")[-1] + ".asm"
-        self.path = path
+        #construct parser and codeWriter
         self.parser = parser()
         self.codeWriter = codeWriter(self.outname)
-        self.codeWriter.writeInit()
-        for cmd in self.codeWriter.asmCmd:
-            self.codeWriter.outf.write(cmd + "\n")
+        #adding bootstrap code
+        for raw in ["bootstrap", "call Sys.init 0"]:
+            #translate vm command into assembly command
+            self.parser.generate(raw)
+            self.codeWriter.writeCmd(self.parser)
+            #write assembly command into output file
+            for cmd in self.codeWriter.asmCmd:
+                self.codeWriter.outf.write(cmd + "\n")
 
     def TranslateSingleFile(self, inputName):
+        #method to translate a single file when there are multiple .vm in a directory
         try:
             inf = open(inputName, "r")
         except:
@@ -527,11 +486,16 @@ class vmTranslator(object):
                         self.codeWriter.outf.write(cmd + "\n")
 
     def Translator(self):
+        #translate a single file or all .vm files within a directory
+        #when translating a single file
         if self.path[-3:] == ".vm":
+            #update className associated with a file
             self.codeWriter.className = self.path.split("/")[-1][:-3]
             self.TranslateSingleFile(self.path)
+        #when translating multiple .vm files within a directory
         else:
             for filename in glob.glob(os.path.join(self.path, '*.vm')):
+                #for each file, update the className associate with each
                 self.codeWriter.className = filename.split("/")[-1][:-3]
                 self.TranslateSingleFile(filename)
 
