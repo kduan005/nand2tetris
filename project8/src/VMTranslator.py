@@ -234,20 +234,14 @@ class codeWriter(object):
                                 "M=M-D"])
         #case "temp", "pointer", "static"
         elif self.argOne in {"temp", "pointer", "static"}:
-            if self.argOne == "static":
-                self.asmCmd.extend(["@{}".format(self.className + self.argTwo),
-                                    "D=M",
-                                    "@SP",
-                                    "AM=M+1",
-                                    "A=A-1",
-                                    "M=D"])
-            else:
-                self.asmCmd.extend(["@{}".format(self.d[self.argOne + self.argTwo]),
-                                    "D=M",
-                                    "@SP",
-                                    "AM=M+1",
-                                    "A=A-1",
-                                    "M=D"])
+            self.asmCmd.extend(["@{}".format(self.className + self.argTwo \
+                                if self.argOne == "static" \
+                                else self.d[self.argOne + self.argTwo]),
+                                "D=M",
+                                "@SP",
+                                "AM=M+1",
+                                "A=A-1",
+                                "M=D"])
 
     def writePop(self):
         #generate asm code for pop command
@@ -269,20 +263,16 @@ class codeWriter(object):
                                 "M=M-D"])
         #case "temp", "pointer", "static"
         elif self.argOne in {"temp", "pointer", "static"}:
-            if self.argOne == "static":
-                self.asmCmd.extend(["@SP",
-                                    "AM=M-1",
-                                    "D=M",
-                                    "@{}".format(self.className + self.argTwo),
-                                    "M=D"])
-            else:
-                self.asmCmd.extend(["@SP",
-                                    "AM=M-1",
-                                    "D=M",
-                                    "@{}".format(self.d[self.argOne + self.argTwo]),
-                                    "M=D"])
+            self.asmCmd.extend(["@SP",
+                                "AM=M-1",
+                                "D=M",
+                                "@{}".format(self.className + self.argTwo \
+                                if self.argOne == "static" \
+                                else self.d[self.argOne + self.argTwo]),
+                                "M=D"])
 
     def writeBranching(self):
+        #generate asm code for vm command with commandType "branching"
         if self.argOne == "label":
             self.label()
         elif self.argOne == "goto":
@@ -308,42 +298,23 @@ class codeWriter(object):
                             "D;JNE"])
 
     def writeCall(self):
+        #generate asm code for "call function nArgs"
         self.asmCmd.extend(["//push returnAddr",
                             "@{}$ret.{}".format(self.functionName, self.counter),
                             "D=A",
                             "@SP",
                             "AM=M+1",
                             "A=A-1",
-                            "M=D",
-                            "//push LCL",
-                            "@LCL",
-                            "D=M",
-                            "@SP",
-                            "AM=M+1",
-                            "A=A-1",
-                            "M=D",
-                            "//push ARG",
-                            "@ARG",
-                            "D=M",
-                            "@SP",
-                            "AM=M+1",
-                            "A=A-1",
-                            "M=D",
-                            "//push THIS",
-                            "@THIS",
-                            "D=M",
-                            "@SP",
-                            "AM=M+1",
-                            "A=A-1",
-                            "M=D",
-                            "//push THAT",
-                            "@THAT",
-                            "D=M",
-                            "@SP",
-                            "AM=M+1",
-                            "A=A-1",
-                            "M=D",
-                            "//ARG = SP - 5 - n",
+                            "M=D"])
+        for key in ["LCL", "ARG", "THIS", "THAT"]:
+            self.asmCmd.extend(["//push {}".format(key),
+                                "@{}".format(key),
+                                "D=M",
+                                "@SP",
+                                "AM=M+1",
+                                "A=A-1",
+                                "M=D"])
+        self.asmCmd.extend(["//ARG = SP - 5 - n",
                             "@SP",
                             "D=M",
                             "@5",
@@ -364,6 +335,7 @@ class codeWriter(object):
         self.counter += 1
 
     def writeFunction(self):
+        #generate asm code for "function function nLcls"
         self.asmCmd.extend(["({})".format(self.functionName)])
         for i in range(int(self.argTwo)):
             self.asmCmd.extend(["@SP",
@@ -372,6 +344,7 @@ class codeWriter(object):
                                 "M=0"])
 
     def writeReturn(self):
+        #generate asm code for "return"
         self.asmCmd.extend(["// endFrame = LCL",
                             "@LCL",
                             "D=M",
@@ -396,45 +369,23 @@ class codeWriter(object):
                             "@ARG",
                             "D=M+1",
                             "@SP",
-                            "M=D"
-                            "//THAT = *(endFrame-1)",
-                            "@endFrame",
-                            "D=M",
-                            "@1",
-                            "A=D-A",
-                            "D=M",
-                            "@THAT",
-                            "M=D",
-                            "//THIS = *(endFrame-2)",
-                            "@endFrame",
-                            "D=M",
-                            "@2",
-                            "A=D-A",
-                            "D=M",
-                            "@THIS",
-                            "M=D",
-                            "//ARG = *(endFrame-3)",
-                            "@endFrame",
-                            "D=M",
-                            "@3",
-                            "A=D-A",
-                            "D=M",
-                            "@ARG",
-                            "M=D",
-                            "//LCL = *(endFrame-4)",
-                            "@endFrame",
-                            "D=M",
-                            "@4",
-                            "A=D-A",
-                            "D=M",
-                            "@LCL",
-                            "M=D"
-                            "//goto returnAddr",
+                            "M=D"])
+        for i, key in enumerate(["THAT", "THIS", "ARG", "LCL"]):
+            self.asmCmd.extend(["//{} = *(endFrame-1)".format(key),
+                                "@endFrame",
+                                "D=M",
+                                "@{}".format(i+1),
+                                "A=D-A",
+                                "D=M",
+                                "@{}".format(key),
+                                "M=D"])
+        self.asmCmd.extend(["//goto returnAddr",
                             "@returnAddr",
                             "A=M",
                             "0;JMP"])
 
     def writeInit(self):
+        #generate asm code for "bootstrap"
         self.asmCmd.extend(["@256",
                             "D=A",
                             "@SP",
