@@ -4,17 +4,34 @@ import os
 import tokenizer
 
 class Compiler(object):
+    #a parser that parses tokens into xml
     def __init__(self, tokens):
+        '''
+        Initialize a token generator generates pairs of (token_type, token)
+        '''
         self.generator = ((type, token) for (type, token) in tokens)
         self.type, self.token = self.generator.next()
 
     def advance(self):
+        '''
+        Advances generator to generate new pairs of (token_type, token), stops
+        when generator raises StopIteration, only called within compileTerminal()
+        '''
         try:
             self.type, self.token = self.generator.next()
         except StopIteration:
             pass
 
-    def compileTerminal(self, word):
+    def compileTerminal(self, word = None):
+        '''
+        Compile terminal terms including keyword, symbol, integerConstant,
+        stringConstant and identifier
+        The argument word is not really passed to the function body, but is
+        used as an annotation to show which terminal terms we are compiling
+        for better readability
+        It costs some extra memory to store the argument but it can be used, for
+        example, for error tracking if we want to add functionality later on
+        '''
         xml = "<{type}> {token} </{type}>\n".format(type = self.type, token = self.token)
         self.advance()
 
@@ -31,7 +48,7 @@ class Compiler(object):
 
     def compileClassVarDec(self):
         if not self.token in {"static", "field"}:
-            #There is no classVarDec
+            #when there is no classVarDec
             return ""
         xml = "<classVarDec>\n"
         xml += self.compileTerminal("static|field") + self.compileTerminal("type") +\
@@ -45,7 +62,7 @@ class Compiler(object):
         return xml
 
     def compileSubroutineDec(self):
-        #There is no subroutineDec
+        #when there is no subroutineDec
         if not self.token in {"constructor", "function", "method"}:
             return ""
         xml = "<subroutineDec>\n"
@@ -60,6 +77,7 @@ class Compiler(object):
 
     def compileParameterList(self):
         xml = "<parameterList>\n"
+        #when parameterList is not empty
         if self.token != ")":
             xml += self.compileTerminal("type") + self.compileTerminal("varName")
             while self.token == ",":
@@ -72,6 +90,7 @@ class Compiler(object):
     def compileSubroutineBody(self):
         xml = "<subroutineBody>\n"
         xml += self.compileTerminal("{")
+        #when there is varDec
         while self.token == "var":
             xml += self.compileVarDec()
         xml += self.compileStatements() + self.compileTerminal("}")
@@ -91,9 +110,9 @@ class Compiler(object):
         return xml
 
     def compileStatements(self):
-        #There are no statements
-        if self.token not in {"let", "if", "while", "do", "return"}:
-            return ""
+        # #When there are no statements
+        # if self.token not in {"let", "if", "while", "do", "return"}:
+        #     return ""
 
         d = {"let": self.compileLet,
              "if": self.compileIf,
@@ -102,7 +121,8 @@ class Compiler(object):
              "return": self.compileReturn}
 
         xml = "<statements>\n"
-        xml += d[self.token]()
+        while self.token in d:
+            xml += d[self.token]()
         xml += "</statements>\n"
 
         return xml
@@ -111,16 +131,16 @@ class Compiler(object):
         xml = "<letStatement>\n"
         xml += self.compileTerminal("let") + self.compileTerminal("varName")
         if self.token == "[":
-            xml += self.compileTerminal("[") + self.compileTerminal("expression") +\
+            xml += self.compileTerminal("[") + self.compileExpression() +\
                 self.compileTerminal("]")
         xml += self.compileTerminal("=") + self.compileExpression() +\
-            self.compileTerminal(";") # "="
+            self.compileTerminal(";")
         xml += "</letStatement>\n"
 
         return xml
 
     def compileIf(self):
-        xml += "<ifStatement>\n"
+        xml = "<ifStatement>\n"
         xml += self.compileTerminal("if") + self.compileTerminal("(") +\
             self.compileExpression() + self.compileTerminal(")") +\
             self.compileTerminal("{") + self.compileStatements() +\
@@ -133,7 +153,7 @@ class Compiler(object):
         return xml
 
     def compileWhile(self):
-        xml += "<whileStatement>\n"
+        xml = "<whileStatement>\n"
         xml += self.compileTerminal("while") + self.compileTerminal("(") +\
             self.compileExpression() + self.compileTerminal(")") + \
             self.compileTerminal("{") + self.compileStatements() + \
@@ -143,15 +163,15 @@ class Compiler(object):
         return xml
 
     def compileDo(self):
-        xml += "<doStatement>\n"
-        xml += self.compileTerminal("do") + self.compileTerm() + \
+        xml = "<doStatement>\n"
+        xml += self.compileTerminal("do") + self.compileTerm(True) + \
             self.compileTerminal(";")
         xml += "</doStatement>\n"
 
         return xml
 
     def compileReturn(self):
-        xml += "<returnStatement>\n"
+        xml = "<returnStatement>\n"
         xml += self.compileTerminal("return")
         if self.token != ";":
             xml += self.compileExpression()
@@ -163,45 +183,60 @@ class Compiler(object):
     def compileExpression(self):
         xml = "<expression>\n"
         xml += self.compileTerm()
-        while self.token in "+-*/&|<>=":
+        while self.token in {"+", "-", "*", "/", "&amp;", "|", "&lt;", "&gt;", "="}:
             xml += self.compileTerminal("op")
             xml += self.compileTerm()
         xml += "</expression>\n"
 
         return xml
 
-    def compileTerm(self):
-        xml = "<term>\n"
+    def compileTerm(self, isSubroutineCall = False):
+        '''
+        When isSubroutineCall is set to be True, subroutineCall is borrowing
+        compileTerm function because the underline logic for compiling the two
+        are the same, only except that there won't be wrapper <term> </term>
+        when used for compiling subRoutineCall
+        '''
+        xml = ""
+        if not isSubroutineCall:
+            xml = "<term>\n"
         if self.type in {"integerConstant", "stringConstant", "keyword", "identifier"}:
             xml += self.compileTerminal("integerConstant|stringConstant|keywordConstant|varName")
+            #including integerConstant|stringConstant|keywordConstant|varName
+            #and the following specified cases
             if self.token == "[":
+                #varName "[" expression "]"
                 xml += self.compileTerminal("[") + self.compileExpression() + \
                     self.compileTerminal("]")
             elif self.token == "(":
+                #subroutineName "(" expressionList ")"
                 xml += self.compileTerminal("(") + self.compileExpressionList() +\
                     self.compileTerminal(")")
             elif self.token == ".":
+                #(className|varName)"."subroutineName "(" expressionList ")"
                 xml += self.compileTerminal(".") + self.compileTerminal("subroutineName") +\
                     self.compileTerminal("(") + self.compileExpressionList() + \
                     self.compileTerminal(")")
         elif self.token == "(":
+            #"(" expression ")"
             xml += self.compileTerminal("(") + self.compileExpression() + \
                 self.compileTerminal(")")
         elif self.token in "-~":
+            #unaryOp term
             xml += self.compileTerminal("unaryOp") + self.compileTerm()
-        xml += "</term>\n"
+        if not isSubroutineCall:
+            xml += "</term>\n"
 
         return xml
 
     def compileExpressionList(self):
-        #expressionList is empty
-        if self.token == ")":
-            return ""
         xml = "<expressionList>\n"
-        xml += self.compileExpression()
-        while self.token == ",":
-            xml += self.compileTerminal(",")
+        if self.token != ")":
+            #when there is at least one expression
             xml += self.compileExpression()
+            while self.token == ",":
+                xml += self.compileTerminal(",")
+                xml += self.compileExpression()
         xml += "</expressionList>\n"
 
         return xml
@@ -218,8 +253,8 @@ class Xml(object):
             _, tokens = self.Tokenizer.tokenize(f.read())
             compiler = Compiler(tokens)
             xml = compiler.compileClass()
-            with open (os.path.basename(filename[:-5]) + ".xml", "w") as o:
-                o.write(xml)
+            with open (filename[:-5] + ".xml", "w") as outf:
+                outf.write(xml)
 
     def compile(self, path):
         '''

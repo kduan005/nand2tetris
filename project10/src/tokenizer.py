@@ -38,10 +38,12 @@ class Tokenizer(object):
                 elif (len(token) == 1 and token in "{}()[].,;+-*/&|<>=~") or\
                 ((line[i] == " " or line[i] in "{}()[].,;+-*/&|<>=~") and token):
 
-                    tokens.append((self.type(token), token))
-                    xml += "<{type}> {token} </{type}> \n".format(\
-                    token = d[token] if token in "<>&" else token.replace('"', ''),
-                    type = self.type(token))
+                    type = self.type(token)
+                    token = d[token] if token in "<>&" else token.replace('"', '')
+
+                    tokens.append((type, token))
+                    xml += "<{type}> {token} </{type}> \n".format(token = token,\
+                    type = type)
 
                     if i < n:
                         #skip white space
@@ -89,8 +91,8 @@ class Txml(object):
         '''
         with open(filename, "r") as f:
             xml, _ = self.Tokenizer.tokenize(f.read())
-            with open (os.path.basename(filename[:-5]) + "T.xml", "w") as o:
-                o.write(xml)
+            with open (filename[:-5] + "T.xml", "w") as outf:
+                outf.write(xml)
 
     def write(self, path):
         '''
