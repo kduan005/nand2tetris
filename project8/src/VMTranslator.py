@@ -28,42 +28,24 @@ class parser(object):
         if self.tokens[0] in {"sub", "neg", "gt", "not", "add", "eq", "lt", "or",\
          "and", "not"}:
             self.commandType = "arithmetic"
-        elif self.tokens[0] in {"push", "pop"}:
+        elif self.tokens[0] in {"push", "pop", "call", "function", "return", "bootstrap"}:
             self.commandType = self.tokens[0]
         elif self.tokens[0] in {"label", "goto", "if-goto"}:
             self.commandType = "branching"
-        elif self.tokens[0] == "call":
-            self.commandType = self.tokens[0]
-        elif self.tokens[0] == "function":
-            self.commandType = self.tokens[0]
-        elif self.tokens[0] == "return":
-            self.commandType = self.tokens[0]
-        elif self.tokens[0] == "bootstrap":
-            self.commandType = self.tokens[0]
 
     def genArgOne(self):
         #method to assign argOne according to command types
-        if self.commandType == "arithmetic":
+        if self.commandType in {"arithmetic", "branching"}:
             self.argOne = self.tokens[0]
-        elif self.commandType in {"push", "pop"}:
-            self.argOne = self.tokens[1]
-        elif self.commandType == "branching":
-            self.argOne = self.tokens[0]
-        elif self.commandType == "call":
-            self.argOne = self.tokens[1]
-        elif self.commandType == "function":
+        elif self.commandType in {"push", "pop", "call", "function"}:
             self.argOne = self.tokens[1]
 
     def genArgTwo(self):
         #method to assign argTwo, only applicable when command type is push/pop and branching
-        if self.commandType in {"push", "pop"}:
+        if self.commandType in {"push", "pop", "call", "function"}:
             self.argTwo = self.tokens[2]
         elif self.commandType == "branching":
             self.argTwo = self.tokens[1]
-        elif self.commandType == "call":
-            self.argTwo = self.tokens[2]
-        elif self.commandType == "function":
-            self.argTwo = self.tokens[2]
 
     def genFunctionName(self):
         if self.commandType == "function":
@@ -203,8 +185,7 @@ class codeWriter(object):
                             "AM=M-1",
                             "D=M",
                             "A=A-1",
-                            "D=D{}M".format(self.d[self.argOne]),
-                            "M=D"])
+                            "M=D{}M".format(self.d[self.argOne])])
 
     def writePush(self):
         #generate asm code for push command
@@ -222,16 +203,12 @@ class codeWriter(object):
             self.asmCmd.extend(["@{}".format(self.argTwo),
                                 "D=A",
                                 "@{}".format(self.d[self.argOne]),
-                                "AM=D+M",
+                                "A=D+M",
                                 "D=M",
                                 "@SP",
                                 "AM=M+1",
                                 "A=A-1",
-                                "M=D",
-                                "@{}".format(self.argTwo),
-                                "D=A",
-                                "@{}".format(self.d[self.argOne]),
-                                "M=M-D"])
+                                "M=D"])
         #case "temp", "pointer", "static"
         elif self.argOne in {"temp", "pointer", "static"}:
             self.asmCmd.extend(["@{}".format(self.className + self.argTwo \
@@ -371,7 +348,7 @@ class codeWriter(object):
                             "@SP",
                             "M=D"])
         for i, key in enumerate(["THAT", "THIS", "ARG", "LCL"]):
-            self.asmCmd.extend(["//{} = *(endFrame-1)".format(key),
+            self.asmCmd.extend(["//{} = *(endFrame-{})".format(key, i+1),
                                 "@endFrame",
                                 "D=M",
                                 "@{}".format(i+1),
