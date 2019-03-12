@@ -24,7 +24,7 @@ class Vmwriter(object):
         self.f.write("call {} {}\n".format(functionName, argumentNumber))
 
     def writeFunction(self, functionName, varNumber):
-        self.f.write("{} {}\n".format(functionName, varNumber))
+        self.f.write("function {} {}\n".format(functionName, varNumber))
 
     def writeReturn(self):
         self.f.write("return\n")

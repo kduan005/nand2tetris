@@ -18,9 +18,6 @@ class Tokenizer(object):
          if line.strip() and not line.strip().startswith("//"))
 
         tokens, xml = [], "<tokens>\n"
-        d = {"<": "&lt;",
-             ">": "&gt;",
-             "&": "&amp;"}
 
         for line in lines:
             n, i = len(line), 0
@@ -39,7 +36,7 @@ class Tokenizer(object):
                 ((line[i] == " " or line[i] in "{}()[].,;+-*/&|<>=~") and token):
 
                     type = self.type(token)
-                    token = d[token] if token in "<>&" else token.replace('"', '')
+                    token = token.replace('"', '')
 
                     tokens.append((type, token))
                     xml += "<{type}> {token} </{type}> \n".format(token = token,\

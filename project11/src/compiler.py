@@ -264,14 +264,26 @@ class CompileEngine(object):
         # return xml
 
     def compileWhile(self):
-        xml = "<whileStatement>\n"
-        xml += self.compileTerminal("while") + self.compileTerminal("(") +\
-            self.compileExpression() + self.compileTerminal(")") + \
-            self.compileTerminal("{") + self.compileStatements() + \
-            self.compileTerminal("}")
-        xml += "</whileStatement>\n"
-
-        return xml
+        # xml = "<whileStatement>\n"
+        self.compileTerminal("while")
+        label1 = "label" + str(self.runningIdx)
+        self.runningIdx += 1
+        self.vmwriter.writeLabel(label1)
+        self.compileTerminal("(")
+        self.compileExpression()
+        self.compileTerminal(")")
+        self.vmwriter.writeArithmetic("not")
+        label2 = "label" + str(self.runningIdx)
+        self.runningIdx += 1
+        self.vmwriter.writeIf(label2)
+        self.compileTerminal("{")
+        self.compileStatements()
+        self.compileTerminal("}")
+        self.vmwriter.writeGoto(label1)
+        self.vmwriter.writeLabel(label2)
+        # xml += "</whileStatement>\n"
+        #
+        # return xml
 
     def compileDo(self):
         # xml = "<doStatement>\n"
@@ -301,14 +313,33 @@ class CompileEngine(object):
         # return xml
 
     def compileExpression(self):
-        xml = "<expression>\n"
-        xml += self.compileTerm()
-        while self.token in {"+", "-", "*", "/", "&amp;", "|", "&lt;", "&gt;", "="}:
-            xml += self.compileTerminal("op")
-            xml += self.compileTerm()
-        xml += "</expression>\n"
-
-        return xml
+        # xml = "<expression>\n"
+        self.compileTerm()
+        while self.token in {"+", "-", "*", "/", "&", "|", "<", ">", "="}:
+            op = self.token
+            self.compileTerminal("op")
+            self.compileTerm()
+            if op == "+":
+                self.vmwriter.writeArithmetic("add")
+            elif op == "-":
+                self.vmwriter.writeArithmetic("sub")
+            elif op == "*":
+                self.vmwriter.writeCall("Math.multiply", 2)
+            elif op == "/":
+                self.vmwriter.writeCall("Math.divide", 2)
+            elif op == "&":
+                self.vmwriter.writeArithmetic("and")
+            elif op == "|":
+                self.vmwriter.writeArithmetic("or")
+            elif op == "<":
+                self.vmwriter.writeArithmetic("lt")
+            elif op == ">":
+                self.vmwriter.writeArithmetic("gt")
+            elif op == "=":
+                self.vmwriter.writeArithmetic("eq")
+        # xml += "</expression>\n"
+        #
+        # return xml
 
     def compileTerm(self, isSubroutineCall = False):
         '''
@@ -317,37 +348,73 @@ class CompileEngine(object):
         are the same, only except that there won't be wrapper <term> </term>
         when used for compiling subRoutineCall
         '''
-        xml = ""
-        if not isSubroutineCall:
-            xml = "<term>\n"
-        if self.type in {"integerConstant", "stringConstant", "keyword", "identifier"}:
-            xml += self.compileTerminal("integerConstant|stringConstant|keywordConstant|varName")
-            #including integerConstant|stringConstant|keywordConstant|varName
-            #and the following specified cases
+        # xml = ""
+        # if not isSubroutineCall:
+        #     xml = "<term>\n"
+        if self.type in {"integerConstant", "stringConstant", "keyword"}:
+            # when current token is one of integerConstant|stringConstant|keyword
+            if self.type == "integerConstant":
+                self.vmwriter.writePush("constant", self.token)
+
+            elif self.type == "stringConstant":
+                self.vmwriter.writePush("constant", len(self.token))
+                self.vmwriter.writeCall("String.new", 1)
+                for ch in self.token:
+                    self.vmwriter.writePush("constant", ord(ch))
+                    self.vmwriter.writeCall("String.appendChar", 2)
+            #when expressions are keywordConstants
+            elif self.token == "this":
+                self.vmwriter.writePush("pointer", 0)
+            elif self.token in {"false", "null"}:
+                self.vmwriter.writePush("constant", 0)
+            elif self.token == "true":
+                self.vmwriter.writePush("constant", 0)
+                self.vmwriter.writeArithmetic("not")
+
+            self.compileTerminal("integerConstant|stringConstant|keywordConstant")
+
+        elif self.type == "identifier":
+            identifier = self.token
+            # when expressions are identifiers, it could be one of varName|subroutineName|className
+            self.compileTerminal("varName|subroutineName|className")
+
             if self.token == "[":
                 #varName "[" expression "]"
-                xml += self.compileTerminal("[") + self.compileExpression() + \
-                    self.compileTerminal("]")
+                self.vmwriter.writePush(self.symbolTable.kindOf(identifier), self.symbolTable.indexOf(identifier))
+                self.compileTerminal("[")
+                self.compileExpression()
+                self.compileTerminal("]")
+                self.vmwriter.writeArithmetic("add")
+                self.vmwriter.writePop("pointer", 1)
+                self.vmwriter.writePush("that", 0)
+
             elif self.token == "(":
                 #subroutineName "(" expressionList ")"
-                xml += self.compileTerminal("(") + self.compileExpressionList() +\
-                    self.compileTerminal(")")
+                self.compileTerminal("(")
+                self.compileExpressionList()
+                self.compileTerminal(")")
+                # self.vmwriter.writeCall(identifier, ) stopped here
             elif self.token == ".":
                 #(className|varName)"."subroutineName "(" expressionList ")"
                 xml += self.compileTerminal(".") + self.compileTerminal("subroutineName") +\
                     self.compileTerminal("(") + self.compileExpressionList() + \
                     self.compileTerminal(")")
+            else:
+                #varName
+                pass
+
         elif self.token == "(":
             #"(" expression ")"
             xml += self.compileTerminal("(") + self.compileExpression() + \
                 self.compileTerminal(")")
+
         elif self.token in "-~":
             #unaryOp term
             xml += self.compileTerminal("unaryOp") + self.compileTerm()
-        if not isSubroutineCall:
-            xml += "</term>\n"
+        # if not isSubroutineCall:
+        #     xml += "</term>\n"
 
-        return xml
+        # return xml
 
     def compileExpressionList(self):
         xml = "<expressionList>\n"
