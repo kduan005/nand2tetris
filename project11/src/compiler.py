@@ -7,7 +7,7 @@ import vmwriter
 
 class CompileEngine(object):
     #a parser that parses tokens into xml
-    def __init__(self, tokens):
+    def __init__(self, tokens, filename):
         '''
         Initialize a token generator generates pairs of (token_type, token)
         '''
@@ -16,7 +16,7 @@ class CompileEngine(object):
         self.className = None
         self.subroutineName = None
         self.symbolTable = symbolTable.SymbolTable()
-        self.vmwriter = vmwriter.Vmwriter()
+        self.vmwriter = vmwriter.Vmwriter(filename)
         self.runningIdx = 0 #for creating unique labels for flow control
 
     def advance(self):
@@ -72,6 +72,7 @@ class CompileEngine(object):
         self.compileClassVarDec()
         self.compileSubroutineDec()
         self.compileTerminal("}")
+        self.vmwriter.close()
         # xml += "</class>\n"
 
         # return xml
@@ -155,7 +156,7 @@ class CompileEngine(object):
         while self.token == "var":
             self.compileVarDec()
 
-        self.vmwriter.writeFunction(subroutineName, self.symbolTable.varCount["local"])
+        self.vmwriter.writeFunction(subroutineName, self.symbolTable.varCount("local"))
 
         if funcType == "constructor":
             self.vmwriter.writePush("constant", self.symbolTable.varCount("field"))
@@ -215,7 +216,7 @@ class CompileEngine(object):
         self.compileTerminal("varName")
         if self.token == "[":
             #when manipulating array
-            self.writePush(self.symbolTable.kindOf(varName), self.symbolTable.indexOf(varName))
+            self.vmwriter.writePush(self.symbolTable.kindOf(varName), self.symbolTable.indexOf(varName))
             self.compileTerminal("[")
             self.compileExpression()
             self.vmwriter.writeArithmetic("add")
@@ -301,12 +302,12 @@ class CompileEngine(object):
         #     self.vmwriter.writePush("pointer", 0)
         # if returnType == "void":
         #     self.vmwriter.writePush("constant", 0)
-        self.vmwriter.writeReturn()
         self.compileTerminal("return")
         if self.token != ";":
             self.compileExpression()
         else:
             self.vmwriter.writePush("constant", 0)
+        self.vmwriter.writeReturn()
         self.compileTerminal(";")
         # xml += "</returnStatement>\n"
         #
@@ -394,7 +395,7 @@ class CompileEngine(object):
                 #takes this as both's first argument
                 argNum = 1
                 self.vmwriter.writePush("pointer", 0)
-                fullSubName = self.className + identifier
+                fullSubName = self.className + "." + identifier
                 self.compileTerminal("(")
                 argNum += self.compileExpressionList()
                 self.compileTerminal(")")
@@ -410,15 +411,15 @@ class CompileEngine(object):
                 if not self.symbolTable.typeOf(identifier):
                     #if identifier is not in symbolTable, it must be a className,
                     #and the function call must be a function instead of a method
-                    fullSubName = identifier + subroutineName
+                    fullSubName = identifier + "." + subroutineName
                 else:
                     #if identifier is in symbolTable, it must be an varName,
                     #and the function call must be a method
-                    # argNum including this
+                    # argNum plus one for including this
                     argNum = 1
                     # push this
                     self.vmwriter.writePush(self.symbolTable.kindOf(identifier), self.symbolTable.indexOf(identifier))
-                    fullSubName = self.symbolTable.typeOf(identifier) + subroutineName
+                    fullSubName = self.symbolTable.typeOf(identifier) + "." + subroutineName
                 argNum += self.compileExpressionList()
                 self.compileTerminal(")")
                 self.vmwriter.writeCall(fullSubName, argNum)
@@ -429,28 +430,38 @@ class CompileEngine(object):
 
         elif self.token == "(":
             #"(" expression ")"
-            xml += self.compileTerminal("(") + self.compileExpression() + \
-                self.compileTerminal(")")
+            self.compileTerminal("(")
+            self.compileExpression()
+            self.compileTerminal(")")
 
         elif self.token in "-~":
             #unaryOp term
-            xml += self.compileTerminal("unaryOp") + self.compileTerm()
+            unaryOp = self.token
+            self.compileTerminal("unaryOp")
+            self.compileTerm()
+            if unaryOp == "-":
+                self.vmwriter.writeArithmetic("neg")
+            elif unaryOp == "~":
+                self.vmwriter.writeArithmetic("not")
         # if not isSubroutineCall:
         #     xml += "</term>\n"
 
         # return xml
 
     def compileExpressionList(self):
-        xml = "<expressionList>\n"
+        # xml = "<expressionList>\n"
+        argNum = 0
         if self.token != ")":
             #when there is at least one expression
-            xml += self.compileExpression()
+            argNum += 1
+            self.compileExpression()
             while self.token == ",":
-                xml += self.compileTerminal(",")
-                xml += self.compileExpression()
-        xml += "</expressionList>\n"
-
-        return xml
+                argNum += 1
+                self.compileTerminal(",")
+                self.compileExpression()
+        # xml += "</expressionList>\n"
+        #
+        return argNum
 
 class Compiler(object):
     def __init__(self):
@@ -462,10 +473,8 @@ class Compiler(object):
         '''
         with open(filename, "r") as f:
             _, tokens = self.Tokenizer.tokenize(f.read())
-            compileEngine = CompileEngine(tokens)
-            xml = compileEngine.compileClass()
-            with open (filename[:-5] + ".xml", "w") as outf:
-                outf.write(xml)
+            compileEngine = CompileEngine(tokens, filename[:-5] + ".vm")
+            compileEngine.compileClass()
 
     def compile(self, path):
         '''

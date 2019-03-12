@@ -3,16 +3,20 @@ class Vmwriter(object):
         self.f = open(filename, "w")
 
     def writePush(self, segment, index):
+        if segment == "field":
+            segment = "this"
         self.f.write("push {} {}\n".format(segment, index))
 
     def writePop(self, segment, index):
+        if segment == "field":
+            segment = "this"
         self.f.write("pop {} {}\n".format(segment, index))
 
     def writeArithmetic(self, arithmetic):
         self.f.write(arithmetic + "\n")
 
     def writeLabel(self, label):
-        self.f.write("({})\n".format(label))
+        self.f.write("label {}\n".format(label))
 
     def writeGoto(self, label):
         self.f.write("goto {}\n".format(label))
