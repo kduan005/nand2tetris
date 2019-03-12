@@ -375,7 +375,7 @@ class CompileEngine(object):
 
         elif self.type == "identifier":
             identifier = self.token
-            # when expressions are identifiers, it could be one of varName|subroutineName|className
+            # when expressions are identifiers, it could be one of varName|varName'['expression']'|subRoutineCall
             self.compileTerminal("varName|subroutineName|className")
 
             if self.token == "[":
@@ -390,18 +390,42 @@ class CompileEngine(object):
 
             elif self.token == "(":
                 #subroutineName "(" expressionList ")"
+                #the function call must be a method within an outer method that
+                #takes this as both's first argument
+                argNum = 1
+                self.vmwriter.writePush("pointer", 0)
+                fullSubName = self.className + identifier
                 self.compileTerminal("(")
-                self.compileExpressionList()
+                argNum += self.compileExpressionList()
                 self.compileTerminal(")")
-                # self.vmwriter.writeCall(identifier, ) stopped here
+                self.vmwriter.writeCall(fullSubName, argNum)
+
             elif self.token == ".":
                 #(className|varName)"."subroutineName "(" expressionList ")"
-                xml += self.compileTerminal(".") + self.compileTerminal("subroutineName") +\
-                    self.compileTerminal("(") + self.compileExpressionList() + \
-                    self.compileTerminal(")")
+                argNum = 0
+                self.compileTerminal(".")
+                subroutineName = self.token
+                self.compileTerminal("subroutineName")
+                self.compileTerminal("(")
+                if not self.symbolTable.typeOf(identifier):
+                    #if identifier is not in symbolTable, it must be a className,
+                    #and the function call must be a function instead of a method
+                    fullSubName = identifier + subroutineName
+                else:
+                    #if identifier is in symbolTable, it must be an varName,
+                    #and the function call must be a method
+                    # argNum including this
+                    argNum = 1
+                    # push this
+                    self.vmwriter.writePush(self.symbolTable.kindOf(identifier), self.symbolTable.indexOf(identifier))
+                    fullSubName = self.symbolTable.typeOf(identifier) + subroutineName
+                argNum += self.compileExpressionList()
+                self.compileTerminal(")")
+                self.vmwriter.writeCall(fullSubName, argNum)
+
             else:
                 #varName
-                pass
+                self.vmwriter.writePush(self.symbolTable.kindOf(identifier), self.symbolTable.indexOf(identifier))
 
         elif self.token == "(":
             #"(" expression ")"
