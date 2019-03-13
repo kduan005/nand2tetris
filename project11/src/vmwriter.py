@@ -1,4 +1,8 @@
 class Vmwriter(object):
+    '''
+    Vmwrite opens the output file path and write vm code compiled by the
+    compileEngine into the output file
+    '''
     def __init__(self, filename):
         self.f = open(filename, "w")
 

@@ -2,11 +2,12 @@ import symbolTable
 import vmwriter
 
 class CompileEngine(object):
-    def __init__(self, tokens, filename):
+    def __init__(self, generator, filename):
         '''
         Initialize a token generator generates pairs of (token_type, token)
         '''
-        self.generator = ((type, token) for (type, token) in tokens)
+        # self.generator = ((type, token) for (type, token) in tokens)
+        self.generator = generator
         self.type, self.token = self.generator.next()
         self.className = None
         self.subroutineName = None
@@ -76,7 +77,8 @@ class CompileEngine(object):
         self.compileClassVarDec()
 
     def compileSubroutineDec(self):
-        #reset subroutine symbolTable to empty hashmap everytime when compiling a new subroutine
+        #reset subroutine symbolTable to empty hashmap everytime when
+        #compiling a new subroutine
         self.symbolTable.resetSubroutineTable()
         #when there is no subroutineDec
         if not self.token in {"constructor", "function", "method"}:
@@ -323,7 +325,8 @@ class CompileEngine(object):
 
         elif self.type == "identifier":
             identifier = self.token
-            # when expressions are identifiers, it could be one of varName|varName'['expression']'|subRoutineCall
+            # when expressions are identifiers
+            # it could be one of varName|varName'['expression']'|subRoutineCall
             self.compileTerminal("varName|subroutineName|className")
 
             if self.token == "[":

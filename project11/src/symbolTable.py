@@ -1,4 +1,8 @@
 class SymbolTable(object):
+    '''
+    SymbolTable class has a classTable and a subroutineTable to keep track of
+    all symbols of variables in a class
+    '''
     def __init__(self):
         self.classTable = {}
         self.subroutineTable = {}
@@ -8,6 +12,9 @@ class SymbolTable(object):
                       "local": 0}
 
     def define(self, name, type, kind):
+        '''
+        Define a symbol in the symbolTable
+        '''
         index = self.count[kind]
         self.count[kind] += 1
         if kind in {"static", "field"}:

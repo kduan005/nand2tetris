@@ -1,14 +1,11 @@
 import re
-import glob
-import os
-import sys
 
 class Tokenizer(object):
 
     def tokenize(self, text):
         '''
-        input text of a file, genrate tokens for the file
-        output text to write to T.xml file and tokens array including tuple of type and token
+        Input text of a file, genrate tokens for the file
+        Output text to write to T.xml file and tokens array including tuple of type and token
         '''
         #clean up multi-line comments and tabs
         text = re.sub("/\*.*?\*/", "", text, flags = re.DOTALL).replace("\t", " ")
@@ -16,8 +13,6 @@ class Tokenizer(object):
         #splits into line generator
         lines = (line.strip().split("//")[0].strip() for line in text.split("\n")\
          if line.strip() and not line.strip().startswith("//"))
-
-        tokens, xml = [], "<tokens>\n"
 
         for line in lines:
             n, i = len(line), 0
@@ -37,10 +32,7 @@ class Tokenizer(object):
 
                     type = self.type(token)
                     token = token.replace('"', '')
-
-                    tokens.append((type, token))
-                    xml += "<{type}> {token} </{type}> \n".format(token = token,\
-                    type = type)
+                    yield (type, token)
 
                     if i < n:
                         #skip white space
@@ -54,11 +46,9 @@ class Tokenizer(object):
                         token += line[i]
                 i += 1
 
-        return xml + "</tokens>\n", tokens
-
     def type(self, token):
         '''
-        given token, return token type
+        Given token, return token type
         '''
         if token in "{}()[].,;+-*/&|<>=~":
             return "symbol"
@@ -77,32 +67,3 @@ class Tokenizer(object):
 
         else:
             return "identifier"
-
-class Txml(object):
-    def __init__(self):
-        self.Tokenizer = Tokenizer()
-
-    def writeSingleFile(self, filename):
-        '''
-        write T.xml for a single file
-        '''
-        with open(filename, "r") as f:
-            xml, _ = self.Tokenizer.tokenize(f.read())
-            with open (filename[:-5] + "T.xml", "w") as outf:
-                outf.write(xml)
-
-    def write(self, path):
-        '''
-        write T.xml for input path regardless of path being a single file or a directory
-        '''
-        #path is a single file
-        if path.endswith(".jack"):
-            self.writeSingleFile(path)
-        #path is a directory
-        else:
-            for filename in glob.glob(os.path.join(path, '*.jack')):
-                self.writeSingleFile(filename)
-
-if __name__ == "__main__":
-    T = Txml()
-    T.write(sys.argv[1])
